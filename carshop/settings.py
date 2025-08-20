@@ -79,7 +79,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'cardb',
         'USER': 'elaman',
-        'PASSWORD': '',       # если без пароля
+        'PASSWORD': 'admin12345',       # если без пароля
         'HOST': 'localhost',
         'PORT': '5432',
     }
