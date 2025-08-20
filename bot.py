@@ -10,7 +10,6 @@ API_URL = "http://127.0.0.1:8000/api/cars/"  # меняй на свой серв
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# 📌 Кнопка "Список машин"
 @dp.message(Command("start"))
 async def start(message: types.Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
