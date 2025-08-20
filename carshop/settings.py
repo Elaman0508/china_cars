@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-3!d&-&zz=+^4i5^&+-sy8x^ry!48xfzxhc%hjve_un235kc28u
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['217.25.93.75', 'localhost']
 
 
 # Application definition
@@ -77,9 +77,9 @@ WSGI_APPLICATION = 'carshop.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'cardb',
-        'USER': 'elaman',
-        'PASSWORD': 'admin12345',       # если без пароля
+        'NAME': 'china_cars_db',      # твоя существующая база
+        'USER': 'china_user',         # существующий пользователь
+        'PASSWORD': 'admin12345',     # пароль для china_user
         'HOST': 'localhost',
         'PORT': '5432',
     }
