@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import BufferedInputFile
 
 API_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
-API_URL = "http://217.25.93.75:8080/api/cars/"  # твой сервер
+API_URL = "http://217.25.93.75/api/cars/"
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
