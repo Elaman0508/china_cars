@@ -11,5 +11,5 @@ class CarSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         request = self.context.get("request")
         if obj.image:
-            return request.build_absolute_uri(obj.image.url)
+            return f"http://217.25.93.75{obj.image.url}"
         return None

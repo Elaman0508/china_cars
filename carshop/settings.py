@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from django.conf import settings
 
 
 # Quick-start development settings - unsuitable for production
@@ -25,7 +26,8 @@ SECRET_KEY = 'django-insecure-3!d&-&zz=+^4i5^&+-sy8x^ry!48xfzxhc%hjve_un235kc28u
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['217.25.93.75', '*']
+ALLOWED_HOSTS = ["*", "217.25.93.75"]
+MEDIA_DOMAIN = "http://217.25.93.75"
 
 
 # Application definition
