@@ -1,10 +1,10 @@
-import asyncio
 import aiohttp
+import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile
+from aiogram.types import FSInputFile
 
-API_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
+API_TOKEN = "ТВОЙ_ТОКЕН_БОТА"
 API_URL = "http://217.25.93.75/api/cars/"
 
 bot = Bot(token=API_TOKEN)
@@ -13,56 +13,55 @@ dp = Dispatcher()
 # Команда /start
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="🚘 Показать машины", callback_data="show_cars")]
-    ])
-    await message.answer("Привет! Я бот-магазин машин 🚗", reply_markup=keyboard)
+    keyboard = types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [types.InlineKeyboardButton(text="🚘 Показать машины", callback_data="show_cars")]
+        ]
+    )
+    await message.answer("Привет! Нажми кнопку, чтобы посмотреть машины 🚗", reply_markup=keyboard)
 
-# Обработка нажатия кнопки "Показать машины"
-@dp.callback_query(lambda c: c.data == "show_cars")
+
+# Обработка кнопки
+@dp.callback_query()
 async def show_cars(callback: types.CallbackQuery):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(API_URL) as resp:
-            try:
-                cars = await resp.json()
-            except Exception:
-                await callback.message.answer("❌ Ошибка при получении данных с сервера")
-                return
+    if callback.data == "show_cars":
+        await callback.answer("Загружаю список машин...")
 
-    if not cars:
-        await callback.message.answer("Пока нет машин в базе ❌")
-        return
+        async with aiohttp.ClientSession() as session:
+            async with session.get(API_URL) as response:
+                if response.status == 200:
+                    cars = await response.json()
 
-    for car in cars:
-        caption = f"""
-🚗 {car.get('brand','')} {car.get('model','')}
-💰 Цена: {car.get('price','')} KGS
-📍 Город: {car.get('city','')}
-📝 {car.get('description','')}
-"""
-        image_url = car.get("image", "")
-        if image_url and not image_url.startswith("http"):
-            image_url = f"http://217.25.93.75:8080{image_url}"
+                    if cars:
+                        for car in cars:
+                            text = (
+                                f"🚗 {car['brand']} {car['model']}\n"
+                                f"💰 Цена: {car['price']} KGS\n"
+                                f"📍 Город: {car['city']}\n"
+                                f"📝 {car['description']}"
+                            )
 
-        try:
-            if image_url:
-                # Скачиваем картинку в память и отправляем как файл
-                async with aiohttp.ClientSession() as img_session:
-                    async with img_session.get(image_url) as img_resp:
-                        if img_resp.status == 200:
-                            content = await img_resp.read()
-                            file = BufferedInputFile(content, filename="car.png")
-                            await callback.message.answer_photo(photo=file, caption=caption)
-                        else:
-                            await callback.message.answer(f"{caption}\n❌ Фото недоступно")
-            else:
-                await callback.message.answer(f"{caption}\n❌ Фото недоступно")
-        except Exception as e:
-            await callback.message.answer(f"{caption}\n❌ Ошибка при отправке фото: {e}")
+                            photo_url = car.get("image")
+                            if photo_url:
+                                try:
+                                    await bot.send_photo(
+                                        chat_id=callback.from_user.id,
+                                        photo=photo_url,
+                                        caption=text
+                                    )
+                                except Exception as e:
+                                    await bot.send_message(callback.from_user.id, f"{text}\n❌ Ошибка фото: {e}")
+                            else:
+                                await bot.send_message(callback.from_user.id, text)
+                    else:
+                        await bot.send_message(callback.from_user.id, "Машин пока нет 🚫")
+                else:
+                    await bot.send_message(callback.from_user.id, "Ошибка API 🚨")
 
-# Запуск бота
+
 async def main():
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
