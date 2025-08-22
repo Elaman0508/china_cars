@@ -2,7 +2,7 @@ import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
 
-BOT_TOKEN = "ТВОЙ_ТОКЕН"
+BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
 API_URL = "http://127.0.0.1:8000/api/cars/"
 
 bot = telebot.TeleBot(BOT_TOKEN)
