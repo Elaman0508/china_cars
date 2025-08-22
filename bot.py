@@ -1,67 +1,77 @@
-import aiohttp
-import asyncio
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.types import FSInputFile
+import telebot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+import requests
 
-API_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
-API_URL = "http://217.25.93.75/api/cars/"
+BOT_TOKEN = "ТВОЙ_ТОКЕН"
+API_URL = "http://127.0.0.1:8000/api/cars/"
 
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
+bot = telebot.TeleBot(BOT_TOKEN)
 
-# Команда /start
-@dp.message(Command("start"))
-async def start(message: types.Message):
-    keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[
-            [types.InlineKeyboardButton(text="🚘 Показать машины", callback_data="show_cars")]
-        ]
-    )
-    await message.answer("Привет! Нажми кнопку, чтобы посмотреть машины 🚗", reply_markup=keyboard)
+user_state = {}  # хранение состояния {user_id: {step, filters}}
 
+# Приветствие
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_id = message.chat.id
+    user_state[user_id] = {"step": "category", "filters": {}}
 
-# Обработка кнопки
-@dp.callback_query()
-async def show_cars(callback: types.CallbackQuery):
-    if callback.data == "show_cars":
-        await callback.answer("Загружаю список машин...")
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(KeyboardButton("Седан"), KeyboardButton("Внедорожник"), KeyboardButton("Минивэн"))
+    bot.send_message(user_id, "Привет! Выбери категорию авто:", reply_markup=markup)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(API_URL) as response:
-                if response.status == 200:
-                    cars = await response.json()
+# Обработка ответов
+@bot.message_handler(func=lambda msg: True)
+def handle(message):
+    user_id = message.chat.id
+    state = user_state.get(user_id, None)
 
-                    if cars:
-                        for car in cars:
-                            text = (
-                                f"🚗 {car['brand']} {car['model']}\n"
-                                f"💰 Цена: {car['price']} KGS\n"
-                                f"📍 Город: {car['city']}\n"
-                                f"📝 {car['description']}"
-                            )
+    if not state:
+        bot.send_message(user_id, "Напиши /start чтобы начать заново")
+        return
 
-                            photo_url = car.get("image")
-                            if photo_url:
-                                try:
-                                    await bot.send_photo(
-                                        chat_id=callback.from_user.id,
-                                        photo=photo_url,
-                                        caption=text
-                                    )
-                                except Exception as e:
-                                    await bot.send_message(callback.from_user.id, f"{text}\n❌ Ошибка фото: {e}")
-                            else:
-                                await bot.send_message(callback.from_user.id, text)
-                    else:
-                        await bot.send_message(callback.from_user.id, "Машин пока нет 🚫")
-                else:
-                    await bot.send_message(callback.from_user.id, "Ошибка API 🚨")
+    step = state["step"]
 
+    # Категория
+    if step == "category":
+        state["filters"]["category"] = message.text
+        state["step"] = "fuel"
 
-async def main():
-    await dp.start_polling(bot)
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("Бензин", "Дизель", "Газ", "Электро")
+        bot.send_message(user_id, "Выбери тип топлива:", reply_markup=markup)
 
+    # Топливо
+    elif step == "fuel":
+        state["filters"]["fuel"] = message.text
+        state["step"] = "price"
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("5000–10000$", "10000–15000$", "15000–20000$")
+        bot.send_message(user_id, "Выбери диапазон цены:", reply_markup=markup)
+
+    # Цена
+    elif step == "price":
+        state["filters"]["price"] = message.text
+        state["step"] = "done"
+
+        # Запрос к API
+        filters = state["filters"]
+        response = requests.get(API_URL, params=filters)
+        cars = response.json()
+
+        if cars:
+            for car in cars:
+                bot.send_message(
+                    user_id,
+                    f"🚗 {car['brand']} {car['model']}\n"
+                    f"💰 Цена: {car['price']} USD\n"
+                    f"📍 Категория: {car['category']}\n"
+                    f"⚡ Топливо: {car['fuel']}"
+                )
+        else:
+            bot.send_message(user_id, "❌ Авто по твоему запросу не найдено.")
+
+        # Сбросить состояние
+        user_state.pop(user_id, None)
+
+bot.polling(none_stop=True)
