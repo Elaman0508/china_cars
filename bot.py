@@ -1,23 +1,23 @@
 import asyncio
 import aiohttp
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 API_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
-API_URL = "http://127.0.0.1:8000/api/cars/"  # меняй на свой сервер
+API_URL = "http://217.25.93.75:8080/api/cars/"  # твой сервер
+TEMP_IMAGE = "temp_car.png"  # временный файл для скачивания
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚘 Показать машины", callback_data="show_cars")]
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="🚘 Показать машины", callback_data="show_cars")]
     ])
     await message.answer("Привет! Я бот-магазин машин 🚗", reply_markup=keyboard)
 
-# 📌 Получение списка машин
 @dp.callback_query(lambda c: c.data == "show_cars")
 async def show_cars(callback: types.CallbackQuery):
     async with aiohttp.ClientSession() as session:
@@ -30,13 +30,29 @@ async def show_cars(callback: types.CallbackQuery):
 
     for car in cars:
         caption = f"""
-🚗 {car['brand']} {car['model']}
-💰 Цена: {car['price']} KGS
-📍 Город: {car['city']}
-📝 {car['description']}
-"""
-        # ✅ теперь фото по URL
-        await callback.message.answer_photo(photo=car["image"], caption=caption)
+    🚗 {car.get('brand', '')} {car.get('model', '')}
+    💰 Цена: {car.get('price', '')} KGS
+    📍 Город: {car.get('city', '')}
+    📝 {car.get('description', '')}
+    """
+        image_url = car.get("image", "")
+
+        if image_url and not image_url.startswith("http"):
+            image_url = f"http://217.25.93.75:8080{image_url}"
+
+        try:
+            if image_url:
+                # ✅ Просто передаём URL
+                await callback.message.answer_photo(photo=image_url, caption=caption)
+            else:
+                await callback.message.answer(f"{caption}\n❌ Фото недоступно")
+        except Exception as e:
+            await callback.message.answer(f"{caption}\n❌ Ошибка при отправке фото: {e}")
+
+
+    # Удаляем временный файл после всех сообщений
+    if os.path.exists(TEMP_IMAGE):
+        os.remove(TEMP_IMAGE)
 
 async def main():
     await dp.start_polling(bot)
