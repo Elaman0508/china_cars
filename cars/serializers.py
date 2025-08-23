@@ -9,7 +9,6 @@ class CarSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_image(self, obj):
-        request = self.context.get("request")
         if obj.image:
-            return f"http://217.25.93.75{obj.image.url}"
+            return f"http://217.25.93.75{obj.image.url}"  # прямой URL
         return None
