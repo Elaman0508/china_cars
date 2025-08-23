@@ -1,12 +1,14 @@
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
+import os
 
 BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"  # вставь свой
 API_URL = "http://217.25.93.75/api/cars/"
+MEDIA_PATH = "/var/www/china_cars/media/cars/"  # путь к локальным фото
 
 bot = telebot.TeleBot(BOT_TOKEN)
-user_state = {}  # хранение состояния {user_id: {"step": ..., "filters": {...}}}
+user_state = {}  # {user_id: {"step": ..., "filters": {...}}}
 
 # --- /start ---
 @bot.message_handler(commands=['start'])
@@ -54,7 +56,6 @@ def handle(message):
         state["filters"]["price"] = message.text
         state["step"] = "done"
 
-        # преобразуем диапазон цены в min/max
         price_range = state["filters"]["price"].split("–")
         filters = state["filters"]
         filters["price_min"] = price_range[0]
@@ -80,13 +81,16 @@ def handle(message):
                     f"💰 Цена: {car['price']} KGS\n"
                     f"📝 {car['description']}"
                 )
-                # --- отправка фото через публичный URL ---
+
+                # --- отправка фото локально ---
                 if car.get("image"):
-                    try:
-                        bot.send_photo(user_id, car["image"], caption=caption)
-                    except Exception as e:
-                        # если ошибка, отправляем просто текст
-                        bot.send_message(user_id, f"⚠️ Не удалось отправить фото.\n{caption}")
+                    filename = os.path.basename(car["image"])
+                    file_path = os.path.join(MEDIA_PATH, filename)
+                    if os.path.exists(file_path):
+                        with open(file_path, "rb") as f:
+                            bot.send_photo(user_id, f, caption=caption)
+                    else:
+                        bot.send_message(user_id, f"⚠️ Фото не найдено.\n{caption}")
                 else:
                     bot.send_message(user_id, caption)
         else:
