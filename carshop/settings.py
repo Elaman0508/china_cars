@@ -29,7 +29,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*", "217.25.93.75"]
 MEDIA_DOMAIN = "http://217.25.93.75"
-
+SITE_URL = "http://217.25.93.75"
 
 # Application definition
 
