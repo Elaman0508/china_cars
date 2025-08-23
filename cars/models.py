@@ -12,19 +12,34 @@ class Car(models.Model):
         ("other", "Другое"),
     ]
 
+    FUEL_CHOICES = [
+        ("petrol", "Бензин"),
+        ("diesel", "Дизель"),
+        ("gas", "Газ"),
+        ("electric", "Электро"),
+        ("hybrid", "Гибрид"),
+    ]
+
     brand = models.CharField(max_length=100, verbose_name="Марка")
     model = models.CharField(max_length=100, verbose_name="Модель")
     engine_capacity = models.DecimalField(
-        max_digits=3, decimal_places=1, verbose_name="Объем двигателя (л)",
-        default=1.6  # 👉 дефолт, чтобы миграции не ругались
+        max_digits=3,
+        decimal_places=1,
+        verbose_name="Объем двигателя (л)",
+        default=1.6
     )
-    year = models.PositiveIntegerField(
-        verbose_name="Год выпуска",
-        default=2020  # 👉 дефолт
-    )
+    year = models.PositiveIntegerField(verbose_name="Год выпуска", default=2020)
     category = models.CharField(
-        max_length=20, choices=CATEGORY_CHOICES, verbose_name="Категория",
-        default="other"  # 👉 дефолт
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        verbose_name="Категория",
+        default="other"
+    )
+    fuel_type = models.CharField(
+        max_length=20,
+        choices=FUEL_CHOICES,
+        verbose_name="Топливо",
+        default="petrol"
     )
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Цена", default=0)
     description = models.TextField(blank=True, verbose_name="Описание")
