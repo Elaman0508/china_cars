@@ -3,12 +3,30 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
 
 BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
-
-# --- публичный URL через Nginx ---
 API_URL = "http://217.25.93.75/api/cars/"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_state = {}  # хранение состояния {user_id: {step, filters}}
+
+# --- Маппинг кнопок на API ---
+fuel_map = {
+    "бензин": "petrol",
+    "дизель": "diesel",
+    "газ": "gas",
+    "электро": "electric"
+}
+
+category_map = {
+    "седан": "sedan",
+    "внедорожник": "suv",
+    "минивэн": "minivan"
+}
+
+price_map = {
+    "5000–10000$": (5000, 10000),
+    "10000–15000$": (10000, 15000),
+    "15000–20000$": (15000, 20000)
+}
 
 # --- Приветствие ---
 @bot.message_handler(commands=['start'])
@@ -34,7 +52,7 @@ def handle(message):
 
     # 1️⃣ Категория
     if step == "category":
-        state["filters"]["category"] = message.text.lower()
+        state["filters"]["category"] = category_map.get(message.text.lower(), message.text.lower())
         state["step"] = "fuel"
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -44,7 +62,8 @@ def handle(message):
 
     # 2️⃣ Топливо
     if step == "fuel":
-        state["filters"]["fuel"] = message.text.lower()
+        fuel_api = fuel_map.get(message.text.lower(), message.text.lower())
+        state["filters"]["fuel_type"] = fuel_api
         state["step"] = "price"
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -54,33 +73,44 @@ def handle(message):
 
     # 3️⃣ Цена
     if step == "price":
-        state["filters"]["price"] = message.text
+        price_min, price_max = price_map.get(message.text, (0, 1_000_000))
+        state["filters"]["price_min"] = price_min
+        state["filters"]["price_max"] = price_max
         state["step"] = "done"
 
-        # --- преобразуем диапазон цены в min/max ---
-        price_range = state["filters"]["price"].replace("$", "").split("–")
-        filters = state["filters"]
-        filters["price_min"] = price_range[0]
-        filters["price_max"] = price_range[1]
-        filters.pop("price")
-
+        # --- Получаем все машины ---
         try:
-            response = requests.get(API_URL, params=filters, timeout=5)
+            response = requests.get(API_URL, timeout=5)
             cars = response.json()
         except Exception as e:
             bot.send_message(user_id, f"Ошибка при подключении к серверу: {e}")
             user_state.pop(user_id, None)
             return
 
-        if cars:
-            for car in cars:
+        # --- Фильтруем в боте ---
+        filtered_cars = []
+        for car in cars:
+            # категория
+            if car['category'] != state["filters"]["category"]:
+                continue
+            # топливо
+            if car['fuel_type'] != state["filters"]["fuel_type"]:
+                continue
+            # цена
+            if not (price_min <= float(car['price']) <= price_max):
+                continue
+            filtered_cars.append(car)
+
+        # --- Отправка пользователю ---
+        if filtered_cars:
+            for car in filtered_cars:
                 caption = (
                     f"🚗 {car['brand']} {car['model']}\n"
                     f"💰 Цена: {car['price']} $\n"
                     f"📍 Категория: {car['category']}\n"
-                    f"⚡ Топливо: {car['fuel_type']}"
+                    f"⚡ Топливо: {car['fuel_type']}\n"
+                    f"📝 {car.get('description', '')}"
                 )
-                # отправляем фото по публичной ссылке
                 if car.get("image"):
                     bot.send_photo(user_id, car["image"], caption=caption)
                 else:
@@ -88,7 +118,7 @@ def handle(message):
         else:
             bot.send_message(user_id, "❌ Авто по твоему запросу не найдено.")
 
-        # Сброс состояния
+        # --- Сброс состояния ---
         user_state.pop(user_id, None)
 
 bot.polling(none_stop=True)
