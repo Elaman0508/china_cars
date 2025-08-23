@@ -1,23 +1,31 @@
-from rest_framework import generics
-from .models import Car
-from .serializers import CarSerializer
+
 from rest_framework import viewsets
 
-class CarList(generics.ListAPIView):
-    serializer_class = CarSerializer
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Car
+from .serializers import CarSerializer
 
-    def get_queryset(self):
-        queryset = Car.objects.all()
-        brand = self.request.query_params.get("brand")
-        max_price = self.request.query_params.get("max_price")
+@api_view(['GET'])
+def car_list(request):
+    cars = Car.objects.all()
 
-        if brand:
-            queryset = queryset.filter(brand__icontains=brand)
-        if max_price:
-            queryset = queryset.filter(price__lte=max_price)
+    category = request.GET.get('category')  # например "sedan"
+    fuel = request.GET.get('fuel')          # например "petrol"
+    price_min = request.GET.get('price_min')
+    price_max = request.GET.get('price_max')
 
-        return queryset
+    if category:
+        cars = cars.filter(category__iexact=category)
+    if fuel:
+        cars = cars.filter(fuel_type__iexact=fuel)
+    if price_min:
+        cars = cars.filter(price__gte=price_min)
+    if price_max:
+        cars = cars.filter(price__lte=price_max)
 
+    serializer = CarSerializer(cars, many=True)
+    return Response(serializer.data)
 
 class CarViewSet(viewsets.ModelViewSet):
     queryset = Car.objects.all()
