@@ -1,128 +1,112 @@
 import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
 from io import BytesIO
 
-BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
+TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
 API_URL = "http://217.25.93.75/api/cars/"
 
-bot = telebot.TeleBot(BOT_TOKEN)
-user_state = {}  # хранение состояния {user_id: {step, filters}}
+bot = telebot.TeleBot(TOKEN)
 
-# --- Маппинг кнопок на API ---
-fuel_map = {
-    "бензин": "petrol",
-    "дизель": "diesel",
-    "газ": "gas",
-    "электро": "electric"
+# ====== Фильтры ======
+user_filters = {}
+
+CATEGORIES = ["Легковые", "Грузовые", "Автобусы"]
+FUEL_TYPES = ["Бензин", "Газ", "Дизель"]
+PRICE_RANGES = {
+    "10-15 тыс": (10000, 15000),
+    "15-20 тыс": (15000, 20000),
+    "20-30 тыс": (20000, 30000)
 }
 
-category_map = {
-    "седан": "sedan",
-    "внедорожник": "suv",
-    "минивэн": "minivan"
-}
 
-price_map = {
-    "5000–10000$": (5000, 10000),
-    "10000–15000$": (10000, 15000),
-    "15000–20000$": (15000, 20000)
-}
-
-# --- Приветствие ---
-@bot.message_handler(commands=['start'])
+# ====== Старт ======
+@bot.message_handler(commands=["start"])
 def start(message):
-    user_id = message.chat.id
-    user_state[user_id] = {"step": "category", "filters": {}}
+    user_filters[message.chat.id] = {}
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for c in CATEGORIES:
+        markup.add(c)
+    bot.send_message(message.chat.id, "👋 Привет! Выберите категорию:", reply_markup=markup)
 
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(KeyboardButton("Седан"), KeyboardButton("Внедорожник"), KeyboardButton("Минивэн"))
-    bot.send_message(user_id, "Привет! Выбери категорию авто:", reply_markup=markup)
 
-# --- Обработка ответов ---
-@bot.message_handler(func=lambda msg: True)
-def handle(message):
-    user_id = message.chat.id
-    state = user_state.get(user_id, None)
+# ====== Выбор категории ======
+@bot.message_handler(func=lambda m: m.text in CATEGORIES)
+def choose_category(message):
+    user_filters[message.chat.id]["category"] = message.text
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for f in FUEL_TYPES:
+        markup.add(f)
+    bot.send_message(message.chat.id, "⛽ Теперь выберите топливо:", reply_markup=markup)
 
-    if not state:
-        bot.send_message(user_id, "Напиши /start чтобы начать заново")
+
+# ====== Выбор топлива ======
+@bot.message_handler(func=lambda m: m.text in FUEL_TYPES)
+def choose_fuel(message):
+    user_filters[message.chat.id]["fuel"] = message.text
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for p in PRICE_RANGES.keys():
+        markup.add(p)
+    bot.send_message(message.chat.id, "💰 Теперь выберите диапазон цены:", reply_markup=markup)
+
+
+# ====== Выбор цены ======
+@bot.message_handler(func=lambda m: m.text in PRICE_RANGES.keys())
+def choose_price(message):
+    user_filters[message.chat.id]["price"] = message.text
+    send_filtered_cars(message.chat.id)
+
+
+# ====== Получение и отправка авто ======
+def send_filtered_cars(user_id):
+    filters = user_filters.get(user_id, {})
+    bot.send_message(user_id, "🔎 Ищу подходящие авто...")
+
+    try:
+        response = requests.get(API_URL, timeout=5)
+        response.raise_for_status()
+        cars = response.json()
+    except Exception as e:
+        bot.send_message(user_id, f"❌ Ошибка получения данных: {e}")
         return
 
-    step = state["step"]
+    min_p, max_p = PRICE_RANGES[filters["price"]]
 
-    # 1️⃣ Категория
-    if step == "category":
-        state["filters"]["category"] = category_map.get(message.text.lower(), message.text.lower())
-        state["step"] = "fuel"
+    results = []
+    for car in cars:
+        if (
+            car.get("category") == filters["category"]
+            and car.get("fuel") == filters["fuel"]
+            and min_p <= float(car.get("price", 0)) <= max_p
+        ):
+            results.append(car)
 
-        markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("Бензин", "Дизель", "Газ", "Электро")
-        bot.send_message(user_id, "Выбери тип топлива:", reply_markup=markup)
+    if not results:
+        bot.send_message(user_id, "🚫 Авто по вашему фильтру не найдено")
         return
 
-    # 2️⃣ Топливо
-    if step == "fuel":
-        fuel_api = fuel_map.get(message.text.lower(), message.text.lower())
-        state["filters"]["fuel_type"] = fuel_api
-        state["step"] = "price"
+    for car in results:
+        caption = (
+            f"🚗 {car.get('brand', '')} {car.get('model', '')}\n"
+            f"💰 Цена: {car.get('price', '')} KGS\n"
+            f"📍 Город: {car.get('city', '')}\n"
+            f"📝 {car.get('description', '')}"
+        )
 
-        markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("5000–10000$", "10000–15000$", "15000–20000$")
-        bot.send_message(user_id, "Выбери диапазон цены:", reply_markup=markup)
-        return
-
-    # 3️⃣ Цена
-    if step == "price":
-        price_min, price_max = price_map.get(message.text, (0, 1_000_000))
-        state["filters"]["price_min"] = price_min
-        state["filters"]["price_max"] = price_max
-        state["step"] = "done"
-
-        # --- Получаем все машины ---
-        try:
-            response = requests.get(API_URL, timeout=5)
-            cars = response.json()
-        except Exception as e:
-            bot.send_message(user_id, f"Ошибка при подключении к серверу: {e}")
-            user_state.pop(user_id, None)
-            return
-
-        # --- Фильтруем в боте ---
-        filtered_cars = []
-        for car in cars:
-            if car['category'] != state["filters"]["category"]:
-                continue
-            if car['fuel_type'] != state["filters"]["fuel_type"]:
-                continue
-            if not (price_min <= float(car['price']) <= price_max):
-                continue
-            filtered_cars.append(car)
-
-        # --- Отправка пользователю ---
-        if filtered_cars:
-            for car in filtered_cars:
-                caption = (
-                    f"🚗 {car['brand']} {car['model']}\n"
-                    f"💰 Цена: {car['price']} $\n"
-                    f"📍 Категория: {car['category']}\n"
-                    f"⚡ Топливо: {car['fuel_type']}\n"
-                    f"📝 {car.get('description', '')}"
-                )
-                if car.get("image"):
-                    try:
-                        # Загружаем фото через requests и отправляем как файл
-                        response = requests.get(car["image"])
-                        photo = BytesIO(response.content)
-                        bot.send_photo(user_id, photo, caption=caption)
-                    except Exception as e:
-                        bot.send_message(user_id, f"Ошибка при загрузке фото: {e}\n{caption}")
+        if car.get("image"):
+            try:
+                resp = requests.get(car["image"], timeout=5)
+                if resp.status_code == 200 and "image" in resp.headers.get("Content-Type", ""):
+                    photo = BytesIO(resp.content)
+                    photo.seek(0)
+                    bot.send_photo(user_id, photo, caption=caption)
                 else:
-                    bot.send_message(user_id, caption)
+                    bot.send_message(user_id, f"❌ Фото недоступно\n{caption}")
+            except Exception as e:
+                bot.send_message(user_id, f"❌ Ошибка загрузки фото: {e}\n{caption}")
         else:
-            bot.send_message(user_id, "❌ Авто по твоему запросу не найдено.")
+            bot.send_message(user_id, caption)
 
-        # --- Сброс состояния ---
-        user_state.pop(user_id, None)
 
+# ====== Запуск ======
+print("🤖 Бот запущен...")
 bot.polling(none_stop=True)
