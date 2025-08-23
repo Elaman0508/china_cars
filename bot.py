@@ -1,6 +1,7 @@
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
+from io import BytesIO
 
 BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
 API_URL = "http://217.25.93.75/api/cars/"
@@ -90,13 +91,10 @@ def handle(message):
         # --- Фильтруем в боте ---
         filtered_cars = []
         for car in cars:
-            # категория
             if car['category'] != state["filters"]["category"]:
                 continue
-            # топливо
             if car['fuel_type'] != state["filters"]["fuel_type"]:
                 continue
-            # цена
             if not (price_min <= float(car['price']) <= price_max):
                 continue
             filtered_cars.append(car)
@@ -112,7 +110,13 @@ def handle(message):
                     f"📝 {car.get('description', '')}"
                 )
                 if car.get("image"):
-                    bot.send_photo(user_id, car["image"], caption=caption)
+                    try:
+                        # Загружаем фото через requests и отправляем как файл
+                        response = requests.get(car["image"])
+                        photo = BytesIO(response.content)
+                        bot.send_photo(user_id, photo, caption=caption)
+                    except Exception as e:
+                        bot.send_message(user_id, f"Ошибка при загрузке фото: {e}\n{caption}")
                 else:
                     bot.send_message(user_id, caption)
         else:
