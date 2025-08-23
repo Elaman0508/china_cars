@@ -7,7 +7,7 @@ API_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
 bot = telebot.TeleBot(API_TOKEN)
 
 # 🔗 API Django
-API_URL = "http://127.0.0.1:8000/api/cars/"
+API_URL = "http://217.25.93.75/api/cars/"  # строго со слэшем!
 
 # --- КНОПКИ ---
 
