@@ -3,7 +3,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
 import os
 
-BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"  # вставь свой
+BOT_TOKEN = "7988730577:AAE6aA6WWt2JL0rNk6eXrTjGn7sXLNDsnAo"
 API_URL = "http://217.25.93.75/api/cars/"
 MEDIA_PATH = "/var/www/china_cars/media/cars/"  # путь к локальным фото
 
@@ -44,6 +44,26 @@ def handle(message):
     # 2️⃣ Топливо
     if step == "fuel":
         state["filters"]["fuel_type"] = message.text.lower()
+        state["step"] = "color"
+
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("Красный", "Синий", "Черный", "Белый")
+        bot.send_message(user_id, "Выбери цвет авто:", reply_markup=markup)
+        return
+
+    # 3️⃣ Цвет
+    if step == "color":
+        state["filters"]["color"] = message.text.lower()
+        state["step"] = "condition"
+
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("Новый", "Б/У")
+        bot.send_message(user_id, "Выбери состояние авто:", reply_markup=markup)
+        return
+
+    # 4️⃣ Состояние
+    if step == "condition":
+        state["filters"]["condition"] = "new" if message.text.lower() == "новый" else "used"
         state["step"] = "price"
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -51,7 +71,7 @@ def handle(message):
         bot.send_message(user_id, "Выбери диапазон цены (KGS):", reply_markup=markup)
         return
 
-    # 3️⃣ Цена
+    # 5️⃣ Цена
     if step == "price":
         state["filters"]["price"] = message.text
         state["step"] = "done"
@@ -78,8 +98,8 @@ def handle(message):
                     f"📅 Год: {car['year']}\n"
                     f"⚙️ Двигатель: {car['engine_capacity']} л\n"
                     f"⛽ Топливо: {car['fuel_type']}\n"
-                    f"🎨 Цвет: {car['color']}\n"
-                    f"📌 Состояние: {'Новый' if car['condition'] == 'new' else 'Б/У'}\n"
+                    f"🎨 Цвет: {car.get('color', '—')}\n"
+                    f"📌 Состояние: {'Новый' if car.get('condition')=='new' else 'Б/У'}\n"
                     f"💰 Цена: {car['price']} KGS\n"
                     f"📝 {car['description']}"
                 )
@@ -92,7 +112,11 @@ def handle(message):
                         with open(file_path, "rb") as f:
                             bot.send_photo(user_id, f, caption=caption)
                     else:
-                        bot.send_message(user_id, f"⚠️ Фото не найдено.\n{caption}")
+                        # fallback: по публичной ссылке
+                        try:
+                            bot.send_photo(user_id, car["image"], caption=caption)
+                        except:
+                            bot.send_message(user_id, f"⚠️ Фото не найдено.\n{caption}")
                 else:
                     bot.send_message(user_id, caption)
         else:
