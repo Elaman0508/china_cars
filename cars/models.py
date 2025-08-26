@@ -20,6 +20,11 @@ class Car(models.Model):
         ("hybrid", "Гибрид"),
     ]
 
+    CONDITION_CHOICES = [
+        ("new", "Новый"),
+        ("used", "Б/у"),
+    ]
+
     brand = models.CharField(max_length=100, verbose_name="Марка")
     model = models.CharField(max_length=100, verbose_name="Модель")
     engine_capacity = models.DecimalField(
@@ -41,6 +46,23 @@ class Car(models.Model):
         verbose_name="Топливо",
         default="petrol"
     )
+    condition = models.CharField(   # ✅ Новое поле
+        max_length=10,
+        choices=CONDITION_CHOICES,
+        verbose_name="Состояние",
+        default="used"
+    )
+    color = models.CharField(       # ✅ Новое поле
+        max_length=50,
+        verbose_name="Цвет",
+        blank=True,
+        null=True
+    )
+    # city = models.CharField(        # ✅ Новое поле
+    #     max_length=100,
+    #     verbose_name="Город",
+    #     default="Бишкек"
+    # )
     price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Цена", default=0)
     description = models.TextField(blank=True, verbose_name="Описание")
     image = models.ImageField(upload_to="cars/", blank=True, null=True, verbose_name="Фото")

@@ -7,7 +7,21 @@ class CarSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Car
-        fields = ["id", "brand", "model", "description", "price", "category", "city", "created_at", "image"]
+        fields = [
+            "id",
+            "brand",
+            "model",
+            "description",
+            "price",
+            "category",
+            "created_at",
+            "year",
+            "engine_capacity",
+            "fuel_type",
+            "color",
+            "condition",
+            "image",
+        ]
 
     def get_image(self, obj):
         if obj.image:

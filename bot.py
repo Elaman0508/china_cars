@@ -78,6 +78,8 @@ def handle(message):
                     f"📅 Год: {car['year']}\n"
                     f"⚙️ Двигатель: {car['engine_capacity']} л\n"
                     f"⛽ Топливо: {car['fuel_type']}\n"
+                    f"🎨 Цвет: {car['color']}\n"
+                    f"📌 Состояние: {'Новый' if car['condition'] == 'new' else 'Б/У'}\n"
                     f"💰 Цена: {car['price']} KGS\n"
                     f"📝 {car['description']}"
                 )
